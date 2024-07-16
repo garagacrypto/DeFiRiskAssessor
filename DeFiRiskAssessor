@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract DeFiRiskAssessor is Ownable {
+    enum RiskLevel { Low, Medium, High }
+
+    struct Protocol {
+        string name;
+        RiskLevel riskLevel;
+        string assessmentReport;
+        bool active;
+    }
+
+    mapping(address => Protocol) public protocols;
+    address[] public activeProtocols;
+
+    // Events
+    event ProtocolAssessed(address indexed protocolAddress, string name, RiskLevel riskLevel, string assessmentReport);
+    event ProtocolActivated(address indexed protocolAddress);
+    event ProtocolDeactivated(address indexed protocolAddress);
+
+    // Assess a new protocol
+    function assessProtocol(address protocolAddress, string memory name, uint8 riskLevel, string memory assessmentReport) external onlyOwner {
+        require(protocolAddress != address(0), "Invalid protocol address");
+        require(riskLevel >= 0 && riskLevel <= 2, "Invalid risk level");
+
+        RiskLevel level = RiskLevel(riskLevel);
+
+        protocols[protocolAddress] = Protocol({
+            name: name,
+            riskLevel: level,
+            assessmentReport: assessmentReport,
+            active: true
+        });
+
+        activeProtocols.push(protocolAddress);
+
+        emit ProtocolAssessed(protocolAddress, name, level, assessmentReport);
+    }
+
+    // Activate a protocol
+    function activateProtocol(address protocolAddress) external onlyOwner {
+        require(protocols[protocolAddress].active == false, "Protocol already active");
+
+        protocols[protocolAddress].active = true;
+        activeProtocols.push(protocolAddress);
+
+        emit ProtocolActivated(protocolAddress);
+    }
+
+    // Deactivate a protocol
+    function deactivateProtocol(address protocolAddress) external onlyOwner {
+        require(protocols[protocolAddress].active == true, "Protocol not active");
+
+        protocols[protocolAddress].active = false;
+
+        // Remove from activeProtocols array
+        for (uint256 i = 0; i < activeProtocols.length; i++) {
+            if (activeProtocols[i] == protocolAddress) {
+                activeProtocols[i] = activeProtocols[activeProtocols.length - 1];
+                activeProtocols.pop();
+                break;
+            }
+        }
+
+        emit ProtocolDeactivated(protocolAddress);
+    }
+
+    // Get active protocol count
+    function getActiveProtocolCount() external view returns (uint256) {
+        return activeProtocols.length;
+    }
+
+    // Get active protocol by index
+    function getActiveProtocolByIndex(uint256 index) external view returns (address) {
+        require(index < activeProtocols.length, "Invalid index");
+        return activeProtocols[index];
+    }
+}
